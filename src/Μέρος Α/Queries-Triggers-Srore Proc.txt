@@ -1,0 +1,228 @@
+
+-- EROTIMA 3, QUERIES --
+#a
+SELECT user.name as onoma,user.surname as epitheto,etaireia.name as onoma_etairias,job.id,job.salary,count(*) as plithos_aitisewn
+from user
+inner join recruiter on user.username=recruiter.username 
+inner join etaireia on AFM=firm
+inner join job on job.recruiter=recruiter.username and
+salary>1900
+inner join applies on job_id=job.id
+group by applies.cand_usrname;
+
+#b
+SELECT candidate.username,certificates,count(*) as plithos_ptyxiwn,avg(grade) as MO_vathmologias
+FROM candidate 
+INNER JOIN has_degree ON username=cand_usrname
+-- WHERE plithos_ptyxiwn > 1
+GROUP BY cand_usrname
+HAVING plithos_ptyxiwn > 1
+;
+
+#c
+SELECT candidate.username,count(*) AS plithos_aitiseon,avg(salary) AS MO_misthou
+FROM candidate
+INNER JOIN applies ON username=cand_usrname
+INNER JOIN job on job_id=id
+GROUP BY cand_usrname
+HAVING MO_misthou > 1800;
+
+#d
+SELECT  etaireia.name,job.position,antikeim_title AS Titlos_Antikeimenwn
+FROM etaireia 
+LEFT JOIN recruiter ON AFM=firm
+LEFT JOIN job ON recruiter.username=job.recruiter
+LEFT JOIN requires ON job.id=requires.job_id
+WHERE job.edra LIKE 'Patra%' 
+AND start_date IS NOT NULL  #Exoun anakoinwthei
+AND antikeim_title LIKE '%Program%'
+;
+
+#e
+SELECT recruiter.username,count(*) AS Plithos_Thesewn,count(interview.usrname) AS Plithos_Sunenteujewn, avg(salary) AS MO_Misthwn
+FROM recruiter
+INNER JOIN job ON username=job.recruiter
+INNER JOIN applies ON job_id=id
+INNER JOIN candidate ON cand_usrname=candidate.username
+INNER JOIN interview ON interview.usrname=candidate.username
+GROUP BY job.recruiter
+HAVING Plithos_Thesewn > 2
+ORDER BY MO_Misthwn DESC
+;
+
+
+
+-- EROTIMA 4 --
+#a STORE PROCEDURE
+DELIMITER $
+DROP PROCEDURE IF EXISTS job_proc$
+CREATE PROCEDURE job_proc(IN p_job_id INT(4))
+
+BEGIN
+ DECLARE number_of_appl int; #arithmos etisewn
+ DECLARE number_of_eval int; #plithos ajiologisewn
+ SELECT count(*)
+ INTO number_of_appl
+ FROM applies
+ WHERE job_id = p_job_id;
+	SELECT count(*)
+	INTO number_of_eval
+	FROM vathmologia
+	WHERE job_id = p_job_id;
+	if(number_of_appl = number_of_eval) then
+		SELECT vathmologia.usr_vath, vathmologia.personality, vathmologia.experience, vathmologia.education, (vathmologia.personality + vathmologia.experience + vathmologia.education) as total_score
+		FROM vathmologia
+		INNER JOIN candidate on vathmologia.usr_vath = candidate.username
+		INNER JOIN interview on candidate.username = interview.usrname
+		WHERE vathmologia.job_id = p_job_id
+		ORDER BY total_score desc;
+ end if;
+
+END$
+
+DELIMITER ;
+
+
+
+
+#b TRIGGERS
+
+-- CANDIDATE --
+DROP TRIGGER IF EXISTS candidate_insert;
+CREATE TRIGGER candidate_insert 
+AFTER INSERT ON candidate
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(NEW.username,CURDATE(),ektelesi,'insert','candidate');
+
+DROP TRIGGER IF EXISTS candidate_update;
+CREATE TRIGGER candidate_update 
+AFTER UPDATE ON candidate
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(NEW.username,CURDATE(),ektelesi,'update','candidate');
+
+DROP TRIGGER IF EXISTS candidate_delete;
+CREATE TRIGGER candidate_delete 
+BEFORE DELETE ON candidate
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(OLD.username,CURDATE(),ektelesi,'delete','candidate');
+
+
+-- RECRUITER --
+DROP TRIGGER IF EXISTS recruiter_insert;
+CREATE TRIGGER recruiter_insert 
+BEFORE INSERT ON recruiter
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(NEW.username,CURDATE(),ektelesi,'insert','recruiter');
+
+DROP TRIGGER IF EXISTS recruiter_update;
+CREATE TRIGGER recruiter_update 
+BEFORE UPDATE ON recruiter
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(NEW.username,CURDATE(),ektelesi,'update','recruiter');
+
+DROP TRIGGER IF EXISTS recruiter_delete;
+CREATE TRIGGER recruiter_delete 
+BEFORE DELETE ON candidate
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(OLD.username,CURDATE(),ektelesi,'delete','recruiter');
+
+
+-- USER --
+DROP TRIGGER IF EXISTS user_insert;
+CREATE TRIGGER user_insert 
+BEFORE INSERT ON user
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(NEW.username,CURDATE(),ektelesi,'insert','user');
+
+DROP TRIGGER IF EXISTS user_update;
+CREATE TRIGGER user_update 
+BEFORE UPDATE ON user
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(NEW.username,CURDATE(),ektelesi,'update','user');
+
+DROP TRIGGER IF EXISTS user_delete;
+CREATE TRIGGER user_delete 
+BEFORE DELETE ON user
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(OLD.username,CURDATE(),ektelesi,'delete','user');
+
+
+-- ETAIREIA --
+DROP TRIGGER IF EXISTS etaireia_insert;
+CREATE TRIGGER etaireia_insert
+BEFORE INSERT  ON etaireia
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(usrname,CURDATE(),ektelesi,'insert','etaireia');
+
+DELIMITER $
+DROP TRIGGER IF EXISTS etaireia_update$
+CREATE TRIGGER etaireia_update
+AFTER UPDATE  ON etaireia
+FOR EACH ROW
+BEGIN 
+SET @NEW.AFM=OLD.AFM;
+SET @NEW.DOY=OLD.DOY;
+SET @NEW.name=OLD.name;
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(usrname,CURDATE(),ektelesi,'update','etaireia');
+END$
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS etaireia_delete;
+CREATE TRIGGER etaireia_delete
+BEFORE DELETE  ON etaireia
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(usrname,CURDATE(),ektelesi,'delete','etaireia');
+
+
+-- JOB --
+DROP TRIGGER IF EXISTS job_insert;
+CREATE TRIGGER job_insert 
+BEFORE INSERT ON job
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(usrname,CURDATE(),ektelesi,'insert','job');
+
+DROP TRIGGER IF EXISTS job_update;
+CREATE TRIGGER job_update 
+BEFORE UPDATE ON job
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(usrname,CURDATE(),ektelesi,'update','job');
+
+DROP TRIGGER IF EXISTS job_delete;
+CREATE TRIGGER job_delete 
+BEFORE DELETE ON job
+FOR EACH ROW
+INSERT INTO istoriko(usrname,imerominia,ektelesi,eidos_entolis,onoma_pinaka)
+VALUES(usrname,CURDATE(),ektelesi,'delete','job');
+
+
+
+
+#c
+DELIMITER $
+DROP TRIGGER IF EXISTS applie_delete$
+CREATE TRIGGER applie_delete
+BEFORE DELETE  ON applies
+FOR EACH ROW
+BEGIN 
+DECLARE sub_date DATE;
+SELECT submission_date FROM job INTO sub_date;
+IF sub_date>CURDATE() THEN
+SIGNAL SQLSTATE VALUE '45000'
+SET MESSAGE_TEXT = 'Exei parelthei h imerominia upovolis etisewn';
+END IF;
+END$
+DELIMITER ;
